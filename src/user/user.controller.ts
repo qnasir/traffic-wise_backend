@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -10,17 +11,31 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { UserService } from './user.service';
-import { User } from '../schemas/user.schema';
+import { User, UserDocument } from '../schemas/user.schema';
 import * as bcrypt from 'bcrypt';
+import { JwtService } from '@nestjs/jwt';
 
 @Controller('users')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   @Post('register')
-  async register(@Body() user: User): Promise<User> {
+  async register(
+    @Body() user: User,
+  ): Promise<{ access_token: string; user: Omit<User, 'password'> }> {
     try {
-      return await this.userService.create(user);
+      const newUser = await this.userService.create(user);
+      const payload = { sub: newUser.email, username: newUser.name };
+      const accessToken = await this.jwtService.signAsync(payload);
+      const { password: _, ...result } = newUser.toObject();
+
+      return {
+        access_token: accessToken,
+        user: result as Omit<User, 'password'>,
+      };
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw new BadRequestException(error.message);
@@ -30,7 +45,9 @@ export class UserController {
   }
 
   @Post('login')
-  async login(@Body() { email, password }): Promise<User> {
+  async login(
+    @Body() { email, password },
+  ): Promise<{ access_token: string; user: Omit<User, 'password'> }> {
     const user = await this.userService.findOne(email);
 
     if (!user) {
@@ -42,6 +59,14 @@ export class UserController {
       throw new UnauthorizedException('Password is incorrect');
     }
 
-    return user;
+    const payload = { sub: user.email, username: user.name };
+    const accessToken = await this.jwtService.signAsync(payload);
+
+    const { password: _, ...result } = user.toObject();
+
+    return {
+      access_token: accessToken,
+      user: result as Omit<User, 'password'>,
+    };
   }
 }
