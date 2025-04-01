@@ -20,9 +20,6 @@ export class User {
   @Prop({ default: false })
   isAdmin: boolean;
 
-  @Prop({ type: [{ type: Object }] })
-  subscribedAreas: SubscribedArea[];
-
   @Prop({ default: 0 })
   points: number;
 
@@ -31,16 +28,6 @@ export class User {
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
-
-export interface SubscribedArea {
-  id: string;
-  name: string;
-  radius: number;
-  location: {
-    lat: number;
-    lng: number;
-  };
-}
 
 export interface Badge {
   id: string;

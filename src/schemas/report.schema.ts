@@ -38,7 +38,7 @@ export class Report {
   @Prop({ required: true, type: Object })
   location: Location;
 
-  @Prop()
+  @Prop({ default: 'https://example.com/default-image.jpg' })
   imageUrl?: string;
 
   @Prop({ required: true })

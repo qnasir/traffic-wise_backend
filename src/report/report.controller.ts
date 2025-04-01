@@ -17,13 +17,41 @@ import {
   Location,
 } from 'src/schemas/report.schema';
 
+interface ReportSuccessResponse {
+  type: 'success';
+  report: Report;
+  message: string;
+}
+
+interface ReportErrorResponse {
+  type: 'error';
+  message: string;
+}
+
+type ReportCreationResponse = ReportSuccessResponse | ReportErrorResponse;
+
 @Controller('reports')
 export class ReportController {
   constructor(private readonly reportService: ReportService) {}
 
   @Post()
-  async create(@Body() report: Report): Promise<Report> {
-    return this.reportService.create(report);
+  async create(@Body() report: Report): Promise<ReportCreationResponse> {
+    if (report.imageUrl === '') {
+      delete report.imageUrl;
+    }
+    const result = await this.reportService.create(report);
+    if (result.type === 'success') {
+      return {
+        type: 'success',
+        report: result.report as Report,
+        message: result.message as string,
+      };
+    } else {
+      return {
+        type: 'error',
+        message: result.message as string,
+      };
+    }
   }
 
   @Get()

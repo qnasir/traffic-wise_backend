@@ -10,19 +10,30 @@ import {
   Location,
 } from 'src/schemas/report.schema';
 
+interface ReportCreationResponse {
+  type: string;
+  report?: Report;
+  message?: string;
+}
+
 @Injectable()
 export class ReportService {
   constructor(
     @InjectModel(Report.name) private reportModel: Model<ReportDocument>,
   ) {}
 
-  async create(report: Report): Promise<Report> {
+  async create(report: Report): Promise<ReportCreationResponse> {
     const createdReport = new this.reportModel(report);
-    return createdReport.save();
+    const savedReport = await createdReport.save();
+    return {
+      type: 'success',
+      report: savedReport,
+      message: 'Issue reported successfully',
+    };
   }
 
   async findAll(): Promise<Report[]> {
-    return this.reportModel.find().exec();
+    return await this.reportModel.find().exec();
   }
 
   async findOne(id: string): Promise<Report | undefined> {
