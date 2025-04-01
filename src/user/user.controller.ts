@@ -2,18 +2,25 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  InternalServerErrorException,
-  Post,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Body, Controller, Post } from '@nestjs/common';
 import { UserService } from './user.service';
 import { User, UserDocument } from '../schemas/user.schema';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
+
+interface LoginSuccessResponse {
+  type: 'success';
+  access_token: string;
+  user: Omit<User, 'password'>;
+  message: string;
+}
+
+interface LoginErrorResponse {
+  type: 'error';
+  message: string;
+}
+
+type LoginResponse = LoginSuccessResponse | LoginErrorResponse;
 
 @Controller('users')
 export class UserController {
@@ -23,40 +30,59 @@ export class UserController {
   ) {}
 
   @Post('register')
-  async register(
-    @Body() user: User,
-  ): Promise<{ access_token: string; user: Omit<User, 'password'> }> {
+  async register(@Body() user: User): Promise<LoginResponse> {
     try {
-      const newUser = await this.userService.create(user);
-      const payload = { sub: newUser.email, username: newUser.name };
+      const creationResult = await this.userService.create(user);
+      if (!creationResult.success) {
+        return {
+          type: 'error',
+          message: creationResult.message ?? 'An error occurred',
+        };
+      }
+      if (!creationResult.user) {
+        return {
+          type: 'error',
+          message: 'User creation failed',
+        };
+      }
+      const payload = {
+        sub: creationResult.user.email,
+        username: creationResult.user.name,
+      };
       const accessToken = await this.jwtService.signAsync(payload);
-      const { password: _, ...result } = newUser.toObject();
+      const { password: _, ...result } = creationResult.user;
 
       return {
+        type: 'success',
         access_token: accessToken,
         user: result as Omit<User, 'password'>,
+        message: 'User Registered successfully',
       };
     } catch (error) {
-      if (error instanceof BadRequestException) {
-        throw new BadRequestException(error.message);
-      }
-      throw new InternalServerErrorException('Internal Server Error');
+      return {
+        type: 'error',
+        message: error.message || 'Internal Server Error',
+      };
     }
   }
 
   @Post('login')
-  async login(
-    @Body() { email, password },
-  ): Promise<{ access_token: string; user: Omit<User, 'password'> }> {
+  async login(@Body() { email, password }): Promise<LoginResponse> {
     const user = await this.userService.findOne(email);
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      return {
+        type: 'error',
+        message: 'User does not exist',
+      };
     }
 
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      throw new UnauthorizedException('Password is incorrect');
+      return {
+        type: 'error',
+        message: 'Password is incorrect',
+      };
     }
 
     const payload = { sub: user.email, username: user.name };
@@ -65,8 +91,10 @@ export class UserController {
     const { password: _, ...result } = user.toObject();
 
     return {
+      type: 'success',
       access_token: accessToken,
       user: result as Omit<User, 'password'>,
+      message: 'Logged in successfully',
     };
   }
 }

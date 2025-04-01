@@ -6,6 +6,7 @@ import { ConfigModule } from '@nestjs/config';
 import { UserModule } from './user/user.module';
 import { ReportModule } from './report/report.module';
 import { NotificationModule } from './notification/notification.module';
+import { SubscribeModule } from './subscribe/subscribe.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { NotificationModule } from './notification/notification.module';
     UserModule,
     ReportModule,
     NotificationModule,
+    SubscribeModule,
   ],
   controllers: [AppController],
   providers: [AppService],
